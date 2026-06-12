@@ -19,8 +19,6 @@ activity patterns.
 
 ## Portfolio context
 
-This project is part of a four-project AI security engineering portfolio:
-
 | Project | Description |
 |---------|-------------|
 | [OCSF Transformer](https://github.com/Lamurrz/ocsf-transformer) | Normalize raw vendor logs → OCSF |
@@ -62,6 +60,25 @@ OCSF Events (simulated or from OCSF Transformer)
         → downstream SIEM / Meridian
 ```
 
+## Benchmark results
+
+Evaluated against UNSW-NB15 (50,000 samples, 14 features, 46.2% attack rate).
+Autoencoder trained on normal traffic only — unsupervised baseline, no labeled training data.
+
+| Metric | UNSW-NB15 | Notes |
+|--------|-----------|-------|
+| F1 | 0.436 | Solid unsupervised baseline |
+| Precision | 0.372 | 37% of flagged entities are true attacks |
+| Recall | 0.527 | Catches 53% of actual attacks |
+| AUC-ROC | 0.653 | Above random (0.5) |
+| False positive rate | 23.5% | Improvable via threshold tuning |
+| Detection rate | 52.7% | Of true attacks detected |
+
+Attack categories in dataset: Generic, Exploits, Fuzzers, DoS, Reconnaissance,
+Analysis, Backdoor, Shellcode, Worms.
+
+CICIDS 2018 benchmark results will be added once the dataset is downloaded.
+
 ## Anomaly types detected
 
 | Type | Pattern |
@@ -89,10 +106,6 @@ cp .env.example .env         # edit with your Neo4j credentials
 python run.py --mode full
 ```
 
-Neo4j must be running. The pipeline uses CG-prefixed labels (`CGUser`,
-`CGIPAddress`, `CGAsset`) so it coexists safely with a Meridian instance
-on the same Neo4j server.
-
 ## Modes
 
 ```bash
@@ -106,24 +119,13 @@ python run.py --mode full --clear  # clear then reload
 
 ## Benchmark datasets
 
-Download and place in the appropriate directories:
-
 **CICIDS 2018** — https://www.unb.ca/cic/datasets/ids-2018.html
 → Place CSV files in `data/cicids2018/`
 
 **UNSW-NB15** — https://research.unsw.edu.au/projects/unsw-nb15-dataset
-→ Place CSV files in `data/unsw_nb15/`
-
-Then run:
-```bash
-python run.py --mode benchmark
-```
-
-Results are saved to `data/benchmark_results.json`.
+→ Place `UNSW_NB15_training-set.csv` in `data/unsw_nb15/`
 
 ## Feature vectors
-
-Per-user behavioral features extracted from the fusion graph:
 
 | Feature | Description |
 |---------|-------------|
@@ -140,8 +142,7 @@ Per-user behavioral features extracted from the fusion graph:
 
 Detection findings are emitted as OCSF Detection Finding (class_uid 2004) events,
 saved to `data/findings/`. These can be ingested by any OCSF-compatible SIEM
-or fed into the Meridian Risk Scoring API for cross-referencing with threat
-actor TTPs.
+or fed into the Meridian Risk Scoring API for cross-referencing with threat actor TTPs.
 
 ## Project structure
 
@@ -157,16 +158,13 @@ cybergraph-ad/
 │   └── evaluator.py         # CICIDS 2018 + UNSW-NB15 evaluation
 ├── output/
 │   └── finding_emitter.py   # OCSF Detection Finding emitter
-├── tests/                   # Test suite
 ├── data/                    # Generated data (gitignored)
-├── config.py                # Settings from .env
-├── run.py                   # Entry point
+├── config.py
+├── run.py
 └── requirements.txt
 ```
 
 ## Related projects
 
-- [OCSF Transformer](https://github.com/Lamurrz/ocsf-transformer) — the normalization
-  layer that feeds this detector
+- [OCSF Transformer](https://github.com/Lamurrz/ocsf-transformer) — normalization layer
 - [Meridian Risk API](https://github.com/Lamurrz/meridian-api) — threat context layer
-  downstream of detection
