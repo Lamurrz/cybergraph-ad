@@ -135,15 +135,22 @@ class BenchmarkEvaluator:
                 "and place CSV files in data/unsw_nb15/"
             )
 
+        # Use training set only — it contains all attack categories
+        # Testing set contains only normal traffic
+        training_file = unsw_dir / "UNSW_NB15_training-set.csv"
+        if not training_file.exists():
+            training_file = next(unsw_dir.glob("*training*.csv"), None)
+        if not training_file:
+            training_file = sorted(unsw_dir.glob("*.csv"))[0]
+
         dfs = []
-        for csv_file in sorted(unsw_dir.glob("*.csv"))[:2]:
-            try:
-                df = pd.read_csv(csv_file, nrows=max_rows // 2, low_memory=False)
-                df.columns = df.columns.str.strip().str.lower()
-                dfs.append(df)
-                logger.info(f"Loaded {len(df)} rows from {csv_file.name}")
-            except Exception as exc:
-                logger.warning(f"Failed to load {csv_file}: {exc}")
+        try:
+            df = pd.read_csv(training_file, nrows=max_rows, low_memory=False)
+            df.columns = df.columns.str.strip().str.lower()
+            dfs.append(df)
+            logger.info(f"Loaded {len(df)} rows from {training_file.name}")
+        except Exception as exc:
+            logger.warning(f"Failed to load {training_file}: {exc}")
 
         if not dfs:
             raise ValueError("No UNSW-NB15 CSV files could be loaded")
@@ -179,13 +186,15 @@ class BenchmarkEvaluator:
 
         # Build feature dicts from numpy arrays for the detector
         def _to_feature_dicts(X: np.ndarray) -> list[dict]:
-            cols = FEATURE_COLS[:X.shape[1]]
-            # Pad or trim to match FEATURE_COLS
-            padded = np.zeros((X.shape[0], len(FEATURE_COLS)))
-            padded[:, :X.shape[1]] = X
+            n_feat = len(FEATURE_COLS)
+            if X.shape[1] >= n_feat:
+                X_aligned = X[:, :n_feat]
+            else:
+                pad = np.zeros((X.shape[0], n_feat - X.shape[1]))
+                X_aligned = np.hstack([X, pad])
             return [
-                {col: float(padded[i, j]) for j, col in enumerate(FEATURE_COLS)}
-                for i in range(len(padded))
+                {col: float(X_aligned[i, j]) for j, col in enumerate(FEATURE_COLS)}
+                for i in range(len(X_aligned))
             ]
 
         # Train only on normal samples
@@ -273,3 +282,6 @@ class BenchmarkEvaluator:
 
         logger.info(f"Benchmark results saved to {output_path}")
         return results
+
+
+
