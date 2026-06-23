@@ -145,6 +145,116 @@ class BenchmarkEvaluator:
 
     # ── Core evaluation ───────────────────────────────────────────────────────
 
+
+    # ── NSL-KDD loader ────────────────────────────────────────────────────────
+
+    # 41 feature names (no header in file)
+    NSL_KDD_COLS = [
+        "duration", "protocol_type", "service", "flag", "src_bytes",
+        "dst_bytes", "land", "wrong_fragment", "urgent", "hot",
+        "num_failed_logins", "logged_in", "num_compromised", "root_shell",
+        "su_attempted", "num_root", "num_file_creations", "num_shells",
+        "num_access_files", "num_outbound_cmds", "is_host_login",
+        "is_guest_login", "count", "srv_count", "serror_rate",
+        "srv_serror_rate", "rerror_rate", "srv_rerror_rate", "same_srv_rate",
+        "diff_srv_rate", "srv_diff_host_rate", "dst_host_count",
+        "dst_host_srv_count", "dst_host_same_srv_rate", "dst_host_diff_srv_rate",
+        "dst_host_same_src_port_rate", "dst_host_srv_diff_host_rate",
+        "dst_host_serror_rate", "dst_host_srv_serror_rate",
+        "dst_host_rerror_rate", "dst_host_srv_rerror_rate",
+        "label", "difficulty"
+    ]
+
+    # Top numeric features most discriminative for anomaly detection
+    NSL_KDD_FEATURE_COLS = [
+        "duration", "src_bytes", "dst_bytes", "wrong_fragment", "urgent",
+        "hot", "num_failed_logins", "num_compromised", "root_shell",
+        "su_attempted", "num_root", "num_file_creations", "num_shells",
+        "num_access_files", "count", "srv_count",
+    ]
+
+    # Normal label in NSL-KDD
+    NSL_KDD_NORMAL_LABEL = "normal"
+
+    # Attack category mapping for per-category breakdown
+    NSL_KDD_ATTACK_CATS = {
+        # DoS
+        "back": "DoS", "land": "DoS", "neptune": "DoS", "pod": "DoS",
+        "smurf": "DoS", "teardrop": "DoS", "apache2": "DoS", "udpstorm": "DoS",
+        "processtable": "DoS", "mailbomb": "DoS",
+        # Probe
+        "ipsweep": "Probe", "nmap": "Probe", "portsweep": "Probe",
+        "satan": "Probe", "mscan": "Probe", "saint": "Probe",
+        # R2L
+        "ftp_write": "R2L", "guess_passwd": "R2L", "imap": "R2L",
+        "multihop": "R2L", "phf": "R2L", "spy": "R2L", "warezclient": "R2L",
+        "warezmaster": "R2L", "xlock": "R2L", "xsnoop": "R2L",
+        "snmpguess": "R2L", "snmpgetattack": "R2L", "httptunnel": "R2L",
+        "sendmail": "R2L", "named": "R2L",
+        # U2R
+        "buffer_overflow": "U2R", "loadmodule": "U2R", "perl": "U2R",
+        "rootkit": "U2R", "ps": "U2R", "sqlattack": "U2R",
+        "xterm": "U2R", "worm": "U2R",
+    }
+
+    def load_nsl_kdd(self, max_rows: int = 125_000) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Load NSL-KDD dataset (KDDTrain+.txt or KDDTest+.txt).
+        Returns (X, y, attack_categories).
+
+        Download from: https://github.com/jmnwong/NSL-KDD-Dataset
+        Place KDDTrain+.txt in data/nsl_kdd/
+        """
+        nsl_dir = self._data_dir / "nsl_kdd"
+        if not nsl_dir.exists():
+            raise FileNotFoundError(
+                f"NSL-KDD data not found at {nsl_dir}. "
+                "Download KDDTrain+.txt from https://github.com/jmnwong/NSL-KDD-Dataset "
+                "and place in data/nsl_kdd/"
+            )
+
+        # Try both common filenames
+        candidates = ["KDDTrain+.txt", "KDDTrain+.TXT", "kddtrain+.txt",
+                      "KDDTest+.txt", "KDDTest+.TXT"]
+        train_file = None
+        for name in candidates:
+            f = nsl_dir / name
+            if f.exists():
+                train_file = f
+                break
+
+        if not train_file:
+            # Try any .txt file
+            txts = list(nsl_dir.glob("*.txt")) + list(nsl_dir.glob("*.TXT"))
+            if not txts:
+                raise FileNotFoundError(f"No .txt files found in {nsl_dir}")
+            train_file = txts[0]
+
+        df = pd.read_csv(
+            train_file,
+            header=None,
+            names=self.NSL_KDD_COLS,
+            nrows=max_rows,
+        )
+        logger.info(f"Loaded {len(df)} rows from {train_file.name}")
+
+        # Binary labels: 0=normal, 1=attack
+        y = (df["label"].str.strip().str.lower() != self.NSL_KDD_NORMAL_LABEL).astype(int).values
+
+        # Attack category per sample
+        attack_cats = df["label"].str.strip().str.lower().map(
+            lambda x: self.NSL_KDD_ATTACK_CATS.get(x, "Normal" if x == "normal" else "Other")
+        ).values
+
+        # Numeric features only (skip categorical: protocol_type, service, flag)
+        avail_cols = [c for c in self.NSL_KDD_FEATURE_COLS if c in df.columns]
+        X = df[avail_cols].apply(pd.to_numeric, errors="coerce").fillna(0).values.astype(float)
+
+        attack_rate = y.mean()
+        logger.info(f"NSL-KDD: {len(X)} samples, {X.shape[1]} features, "
+                    f"{y.sum()} attacks ({100*attack_rate:.1f}%)")
+        return X, y, attack_cats
+
     def evaluate_autoencoder(
         self,
         X: np.ndarray,
@@ -367,6 +477,21 @@ class BenchmarkEvaluator:
         except Exception as exc:
             results["cicids2018"] = {"status": "error", "reason": str(exc)}
             logger.error(f"cicids2018 failed: {exc}")
+
+        # NSL-KDD
+        try:
+            X, y, attack_cats = self.load_nsl_kdd()
+            metrics = self.evaluate_autoencoder(X, y, attack_cats=attack_cats)
+            results["nsl_kdd"] = {"status": "success", "metrics": metrics}
+            logger.info(f"nsl_kdd: F1={metrics['f1']:.3f}, "
+                        f"Precision={metrics['precision']:.3f}, "
+                        f"Recall={metrics['recall']:.3f}, "
+                        f"AUC={metrics.get('auc_roc', 'N/A')}")
+        except FileNotFoundError as exc:
+            results["nsl_kdd"] = {"status": "skipped", "reason": str(exc)}
+        except Exception as exc:
+            results["nsl_kdd"] = {"status": "error", "reason": str(exc)}
+            logger.error(f"nsl_kdd failed: {exc}")
 
         # UNSW-NB15
         try:
