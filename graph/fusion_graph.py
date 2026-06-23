@@ -220,58 +220,36 @@ class FusionGraph:
 
     # ── Feature extraction ────────────────────────────────────────────────────
 
-    def extract_user_features(self) -> list[dict[str, Any]]:
-        """
-        Extract per-user behavioral feature vectors from the graph.
-        These feed the autoencoder for anomaly scoring.
+   def extract_user_features(self) -> list[dict[str, Any]]:
+    from graph.feature_extraction import EXTRACT_USER_FEATURES_CYPHER, _compute_derived_features
 
-        Features per user:
-          - total_events: total authentication events
-          - failure_rate: fraction of failed authentications
-          - unique_assets: number of distinct assets accessed
-          - unique_ips: number of distinct IPs used
-          - external_ip_rate: fraction of events from external IPs
-          - off_hours_rate: fraction of events outside 08:00-18:00
-          - avg_bytes_out: average outbound bytes in network events
-          - max_bytes_out: maximum outbound bytes in a single event
-          - asset_diversity: Shannon entropy of asset access distribution
-          - ip_diversity: Shannon entropy of IP usage distribution
-        """
-        cypher = """
-        MATCH (u:CGUser)-[r:AUTHENTICATED]->(a:CGAsset)
-        WITH u,
-             count(r)                                          AS total_events,
-             sum(CASE WHEN r.status_id = 2 THEN 1 ELSE 0 END) AS failures,
-             count(DISTINCT a)                                 AS unique_assets,
-             count(DISTINCT r.src_ip)                         AS unique_ips,
-             sum(CASE WHEN r.src_ip STARTS WITH '10.' THEN 0 ELSE 1 END) AS ext_events,
-             sum(CASE WHEN
-               toInteger(substring(toString(datetime({epochMillis: r.time})), 11, 2)) < 8
-               OR
-               toInteger(substring(toString(datetime({epochMillis: r.time})), 11, 2)) >= 18
-               THEN 1 ELSE 0 END)                             AS off_hours_events
-        OPTIONAL MATCH (u)-[net_r:USED_IP]->(ip:CGIPAddress)-[c:CONNECTED_TO]->(asset)
-        WITH u, total_events, failures, unique_assets, unique_ips,
-             ext_events, off_hours_events,
-             avg(c.bytes_out)  AS avg_bytes_out,
-             max(c.bytes_out)  AS max_bytes_out
-        RETURN
-            u.uid             AS user_uid,
-            u.name            AS user_name,
-            total_events,
-            toFloat(failures) / total_events               AS failure_rate,
-            unique_assets,
-            unique_ips,
-            toFloat(ext_events) / total_events             AS external_ip_rate,
-            toFloat(off_hours_events) / total_events       AS off_hours_rate,
-            coalesce(avg_bytes_out, 0.0)                   AS avg_bytes_out,
-            coalesce(max_bytes_out, 0.0)                   AS max_bytes_out
-        ORDER BY total_events DESC
-        """
+    with self._driver.session() as session:
+        result = session.run(EXTRACT_USER_FEATURES_CYPHER)
+        rows = result.data()
 
-        with self._driver.session() as session:
-            result = session.run(cypher)
-            return result.data()
+    features = []
+    for row in rows:
+        total_events = row.get("total_events", 0) or 0
+        if total_events == 0:
+            continue
+        feat = {
+            "user_uid":         row.get("user_uid", ""),
+            "user_name":        row.get("user_name", ""),
+            "total_events":     float(total_events),
+            "failure_rate":     float(row.get("failure_rate") or 0.0),
+            "unique_assets":    float(row.get("unique_assets") or 0.0),
+            "unique_ips":       float(row.get("unique_ips") or 0.0),
+            "external_ip_rate": float(row.get("external_ip_rate") or 0.0),
+            "off_hours_rate":   float(row.get("off_hours_rate") or 0.0),
+            "avg_bytes_out":    float(row.get("avg_bytes_out") or 0.0),
+            "max_bytes_out":    float(row.get("max_bytes_out") or 0.0),
+        }
+        derived = _compute_derived_features(row)
+        feat.update(derived)
+        features.append(feat)
+
+    logger.info(f"Extracted features for {len(features)} users")
+    return features
 
     def extract_ip_features(self) -> list[dict[str, Any]]:
         """
