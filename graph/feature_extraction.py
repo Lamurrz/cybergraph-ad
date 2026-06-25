@@ -61,8 +61,7 @@ RETURN
     coalesce(time_stdev, 0.0)                           AS time_variance,
     event_times,
     asset_sensitivities,
-    coalesce(ips_with_connections, 0)                   AS ips_with_connections,
-    unique_ips
+    coalesce(ips_with_connections, 0)                   AS ips_with_connections
 ORDER BY total_events DESC
 """
 

@@ -220,36 +220,36 @@ class FusionGraph:
 
     # ── Feature extraction ────────────────────────────────────────────────────
 
-   def extract_user_features(self) -> list[dict[str, Any]]:
-    from graph.feature_extraction import EXTRACT_USER_FEATURES_CYPHER, _compute_derived_features
+    def extract_user_features(self) -> list[dict[str, Any]]:
+        from graph.feature_extraction import EXTRACT_USER_FEATURES_CYPHER, _compute_derived_features
 
-    with self._driver.session() as session:
-        result = session.run(EXTRACT_USER_FEATURES_CYPHER)
-        rows = result.data()
+        with self._driver.session() as session:
+            result = session.run(EXTRACT_USER_FEATURES_CYPHER)
+            rows = result.data()
 
-    features = []
-    for row in rows:
-        total_events = row.get("total_events", 0) or 0
-        if total_events == 0:
-            continue
-        feat = {
-            "user_uid":         row.get("user_uid", ""),
-            "user_name":        row.get("user_name", ""),
-            "total_events":     float(total_events),
-            "failure_rate":     float(row.get("failure_rate") or 0.0),
-            "unique_assets":    float(row.get("unique_assets") or 0.0),
-            "unique_ips":       float(row.get("unique_ips") or 0.0),
-            "external_ip_rate": float(row.get("external_ip_rate") or 0.0),
-            "off_hours_rate":   float(row.get("off_hours_rate") or 0.0),
-            "avg_bytes_out":    float(row.get("avg_bytes_out") or 0.0),
-            "max_bytes_out":    float(row.get("max_bytes_out") or 0.0),
-        }
-        derived = _compute_derived_features(row)
-        feat.update(derived)
-        features.append(feat)
+        features = []
+        for row in rows:
+            total_events = row.get("total_events", 0) or 0
+            if total_events == 0:
+                continue
+            feat = {
+                "user_uid":         row.get("user_uid", ""),
+                "user_name":        row.get("user_name", ""),
+                "total_events":     float(total_events),
+                "failure_rate":     float(row.get("failure_rate") or 0.0),
+                "unique_assets":    float(row.get("unique_assets") or 0.0),
+                "unique_ips":       float(row.get("unique_ips") or 0.0),
+                "external_ip_rate": float(row.get("external_ip_rate") or 0.0),
+                "off_hours_rate":   float(row.get("off_hours_rate") or 0.0),
+                "avg_bytes_out":    float(row.get("avg_bytes_out") or 0.0),
+                "max_bytes_out":    float(row.get("max_bytes_out") or 0.0),
+            }
+            derived = _compute_derived_features(row)
+            feat.update(derived)
+            features.append(feat)
 
-    logger.info(f"Extracted features for {len(features)} users")
-    return features
+        logger.info(f"Extracted features for {len(features)} users")
+        return features
 
     def extract_ip_features(self) -> list[dict[str, Any]]:
         """
