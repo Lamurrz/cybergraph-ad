@@ -7,18 +7,18 @@ Ensemble behavioral anomaly detector combining:
 
 Improvements over v1
 --------------------
-  - 16 behavioral features (up from 8) — richer graph-derived signals
+  - 16 behavioral features (up from 8) â€” richer graph-derived signals
   - Ensemble scoring: weighted combination of AE + IF scores
   - Threshold optimization: sweep on validation split to maximize F1
-  - Robust scaler: RobustScaler instead of StandardScaler — handles outliers
-  - Dropout regularization in autoencoder — reduces overfitting on small graphs
-  - Early stopping — prevents overfitting when training loss plateaus
+  - Robust scaler: RobustScaler instead of StandardScaler â€” handles outliers
+  - Dropout regularization in autoencoder â€” reduces overfitting on small graphs
+  - Early stopping â€” prevents overfitting when training loss plateaus
 
 Architecture
 ------------
 Input (16 features)
-  → Encoder: 16 → 64 → 32 → 16 → 8 (bottleneck)
-  → Decoder: 8 → 16 → 32 → 64 → 16
+  â†’ Encoder: 16 â†’ 64 â†’ 32 â†’ 16 â†’ 8 (bottleneck)
+  â†’ Decoder: 8 â†’ 16 â†’ 32 â†’ 64 â†’ 16
   Anomaly score = MSE reconstruction error
 
 Ensemble combination
@@ -44,7 +44,7 @@ from sklearn.metrics import f1_score, precision_score, recall_score
 
 logger = logging.getLogger("cybergraph.detection")
 
-# ── Feature columns (v2 — 16 features) ───────────────────────────────────────
+# â”€â”€ Feature columns (v2 â€” 16 features) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 FEATURE_COLS = [
     # Core behavioral features (v1)
@@ -71,7 +71,7 @@ FEATURE_COLS = [
 N_FEATURES = len(FEATURE_COLS)
 
 
-# ── Autoencoder model ─────────────────────────────────────────────────────────
+# â”€â”€ Autoencoder model â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _Autoencoder(nn.Module):
     def __init__(self, input_dim: int, hidden_dims: list[int], dropout: float = 0.1):
@@ -111,7 +111,7 @@ class _Autoencoder(nn.Module):
             return torch.mean((x - recon) ** 2, dim=1)
 
 
-# ── Ensemble Detector ─────────────────────────────────────────────────────────
+# â”€â”€ Ensemble Detector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class AnomalyDetector:
     """
@@ -163,7 +163,7 @@ class AnomalyDetector:
         self._train_errors: np.ndarray | None = None
         self._ae_max_error: float = 1.0   # for normalization
 
-    # ── Feature preparation ───────────────────────────────────────────────────
+    # â”€â”€ Feature preparation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _to_matrix(self, records: list[dict[str, Any]]) -> np.ndarray:
         """Convert feature dicts to float matrix. Handles None and missing cols."""
@@ -173,7 +173,7 @@ class AnomalyDetector:
             rows.append(row)
         return np.array(rows, dtype=np.float32)
 
-    # ── Training ──────────────────────────────────────────────────────────────
+    # â”€â”€ Training â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def fit(
         self,
@@ -186,7 +186,7 @@ class AnomalyDetector:
         Parameters
         ----------
         features : list of dicts from FusionGraph.extract_user_features()
-        labels   : optional list of bool — if provided, optimize threshold on F1
+        labels   : optional list of bool â€” if provided, optimize threshold on F1
 
         Returns
         -------
@@ -198,7 +198,7 @@ class AnomalyDetector:
         X = self._to_matrix(features)
         X_scaled = self._scaler.fit_transform(X)
 
-        # ── Train Autoencoder ─────────────────────────────────────────────────
+        # â”€â”€ Train Autoencoder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         X_tensor = torch.tensor(X_scaled, dtype=torch.float32)
         input_dim = X_tensor.shape[1]
 
@@ -233,7 +233,7 @@ class AnomalyDetector:
             scheduler.step(final_loss)
 
             if epoch % 10 == 0:
-                logger.info(f"Epoch {epoch}/{self.epochs} — loss: {final_loss:.6f}")
+                logger.info(f"Epoch {epoch}/{self.epochs} â€” loss: {final_loss:.6f}")
 
             # Early stopping
             if final_loss < best_loss - 1e-6:
@@ -245,7 +245,7 @@ class AnomalyDetector:
                     logger.info(f"Early stopping at epoch {epoch}")
                     break
 
-        # ── Train Isolation Forest ────────────────────────────────────────────
+        # â”€â”€ Train Isolation Forest â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         self._isolation_forest = IsolationForest(
             n_estimators=200,
             contamination=self.if_contamination,
@@ -254,12 +254,12 @@ class AnomalyDetector:
         )
         self._isolation_forest.fit(X_scaled)
 
-        # ── Compute training errors and threshold ─────────────────────────────
+        # â”€â”€ Compute training errors and threshold â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         self._model.eval()
         self._train_errors = self._model.reconstruction_error(X_tensor).numpy()
         self._ae_max_error = float(np.percentile(self._train_errors, 99)) or 1.0
 
-        # IF scores: negative of anomaly score (-1=anomaly, 1=normal) → flip
+        # IF scores: negative of anomaly score (-1=anomaly, 1=normal) â†’ flip
         if_scores_train = -self._isolation_forest.score_samples(X_scaled)
         if_scores_norm = (if_scores_train - if_scores_train.min()) / (
             if_scores_train.max() - if_scores_train.min() + 1e-9
@@ -276,7 +276,7 @@ class AnomalyDetector:
             self._threshold = float(np.percentile(combined_train, self.threshold_percentile))
             logger.info(f"Threshold set at {self.threshold_percentile}th percentile: {self._threshold:.6f}")
 
-        logger.info(f"Training complete — loss: {final_loss:.6f}, threshold: {self._threshold:.6f}")
+        logger.info(f"Training complete â€” loss: {final_loss:.6f}, threshold: {self._threshold:.6f}")
 
         return {
             "final_loss": float(final_loss),
@@ -314,7 +314,7 @@ class AnomalyDetector:
 
         return best_threshold
 
-    # ── Scoring ───────────────────────────────────────────────────────────────
+    # â”€â”€ Scoring â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def score(self, features: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
@@ -326,10 +326,10 @@ class AnomalyDetector:
           - if_score: isolation forest anomaly score (normalized)
           - combined_score: weighted ensemble score
           - is_anomaly: bool
-          - anomaly_score_normalized: 0–10 scale relative to threshold
+          - anomaly_score_normalized: 0â€“10 scale relative to threshold
         """
         if self._model is None or self._threshold is None:
-            raise RuntimeError("Model not trained — call fit() first")
+            raise RuntimeError("Model not trained â€” call fit() first")
 
         X = self._to_matrix(features)
         X_scaled = self._scaler.transform(X)
@@ -367,10 +367,10 @@ class AnomalyDetector:
             })
 
         anomaly_count = sum(1 for r in results if r["is_anomaly"])
-        logger.info(f"Scored {len(results)} entities — {anomaly_count} anomalies detected")
+        logger.info(f"Scored {len(results)} entities â€” {anomaly_count} anomalies detected")
         return results
 
-    # ── Persistence ───────────────────────────────────────────────────────────
+    # â”€â”€ Persistence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def save(self, path: str) -> None:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -392,7 +392,7 @@ class AnomalyDetector:
 
     def load(self, path: str) -> None:
         import joblib
-        checkpoint = torch.load(path, map_location="cpu")
+        checkpoint = torch.load(path, map_location="cpu", weights_only=True)
         self.hidden_dims = checkpoint["hidden_dims"]
         self._model = _Autoencoder(N_FEATURES, self.hidden_dims, self.dropout)
         self._model.load_state_dict(checkpoint["model_state"])
