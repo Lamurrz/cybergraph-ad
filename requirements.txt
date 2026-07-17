@@ -4,4 +4,4 @@ numpy==2.5.0
 pandas==3.0.3
 pydantic_settings==2.14.2
 scikit_learn==1.9.0
-torch==2.12.1
+torch==2.13.0
