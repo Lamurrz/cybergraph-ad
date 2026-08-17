@@ -1,7 +1,7 @@
 joblib==1.5.3
 neo4j==6.2.0
-numpy==2.5.1
-pandas==3.0.3
-pydantic_settings==2.14.2
+numpy==2.5.2
+pandas==3.0.5
+pydantic_settings==2.15.0
 scikit_learn==1.9.0
 torch==2.13.0
